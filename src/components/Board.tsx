@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { FC, useEffect, useState } from "react";
 
 const winningCombinations = [
   [0, 1, 2],
@@ -13,10 +13,24 @@ const winningCombinations = [
   [2, 4, 6],
 ];
 
-const Board = () => {
+interface BoardProps {
+  difficulty: string;
+}
+
+const Board: FC<BoardProps> = ({ difficulty }) => {
   const [gameBoard, setGameBoard] = useState<string[]>(Array(9).fill(""));
-  const [turn, setTurn] = useState("Player");
+  const [turn, setTurn] = useState("");
   const [winner, setWinner] = useState("");
+
+  useEffect(() => {
+    const randNum = Math.random();
+    if (randNum > 0.5) {
+      setTurn("Player");
+    } else {
+      setTurn("AI");
+      makeMove(gameBoard, difficulty);
+    }
+  }, []);
 
   function checkWinner(board: string[]) {
     for (let combination of winningCombinations) {
@@ -94,7 +108,6 @@ const Board = () => {
   }
 
   function minimax(board: string[], player: string) {
-    // Base cases: check if the game is over
     if (checkWinner(board) === "O") {
       return { score: 10 };
     } else if (checkWinner(board) === "X") {
@@ -103,20 +116,15 @@ const Board = () => {
       return { score: 0 };
     }
 
-    // Initialize moves array to store each possible move and its score
     const moves = [];
 
-    // Loop through each empty cell on the board
     for (let i = 0; i < board.length; i++) {
       if (!board[i]) {
-        // Create a move object to store index and score
         const move: any = {};
         move.index = i;
 
-        // Make the move for the current player
         board[i] = player;
 
-        // Recursively call minimax to evaluate the move
         if (player === "O") {
           const result = minimax(board, "X");
           move.score = result.score;
@@ -125,15 +133,12 @@ const Board = () => {
           move.score = result.score;
         }
 
-        // Undo the move
         board[i] = "";
 
-        // Push the move object to the moves array
         moves.push(move);
       }
     }
 
-    // Find the best move
     let bestMove;
     if (player === "O") {
       let bestScore = -Infinity;
@@ -153,7 +158,6 @@ const Board = () => {
       }
     }
 
-    // Return the best move
     return bestMove;
   }
 
@@ -191,7 +195,7 @@ const Board = () => {
         return;
       }
 
-      makeMove(newBoard, "hard");
+      makeMove(newBoard, difficulty);
     }
   }
 
