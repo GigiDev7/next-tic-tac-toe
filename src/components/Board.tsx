@@ -1,6 +1,7 @@
 "use client";
 
 import { FC, useEffect, useState } from "react";
+import DifficultyOptions from "./DifficultyOptions";
 
 const winningCombinations = [
   [0, 1, 2],
@@ -13,24 +14,31 @@ const winningCombinations = [
   [2, 4, 6],
 ];
 
-interface BoardProps {
+/* interface BoardProps {
   difficulty: string;
-}
+} */
 
-const Board: FC<BoardProps> = ({ difficulty }) => {
+const Board = () => {
   const [gameBoard, setGameBoard] = useState<string[]>(Array(9).fill(""));
   const [turn, setTurn] = useState("");
   const [winner, setWinner] = useState("");
+  const [difficulty, setDifficulty] = useState("");
 
   useEffect(() => {
-    const randNum = Math.random();
-    if (randNum > 0.5) {
-      setTurn("Player");
-    } else {
-      setTurn("AI");
-      makeMove(gameBoard, difficulty);
+    if (!turn && difficulty) {
+      const randNum = Math.random();
+      if (randNum > 0.5) {
+        setTurn("Player");
+      } else {
+        setTurn("AI");
+        makeMove(gameBoard, difficulty);
+      }
     }
-  }, []);
+  }, [difficulty]);
+
+  function changeDifficulty(dif: string) {
+    setDifficulty(dif);
+  }
 
   function checkWinner(board: string[]) {
     for (let combination of winningCombinations) {
@@ -210,24 +218,32 @@ const Board: FC<BoardProps> = ({ difficulty }) => {
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-8">
       {winner && (
         <h1>{winner === "Draw" ? "It's a draw" : `Winner is ${winner}`}</h1>
       )}
-      <div className="grid grid-cols-3 gap-1">
-        {gameBoard.map((val, index) => {
-          return (
-            <button
-              disabled={winner !== ""}
-              onClick={() => makePlayerMove(index)}
-              className="bg-gray-200 border border-gray-400 w-24 h-24 text-4xl font-bold text-center cursor-pointer"
-              key={index}
-            >
-              {val}
-            </button>
-          );
-        })}
-      </div>
+
+      <DifficultyOptions
+        changeDifficulty={changeDifficulty}
+        difficulty={difficulty}
+      />
+
+      {difficulty && (
+        <div className="grid grid-cols-3 gap-1">
+          {gameBoard.map((val, index) => {
+            return (
+              <button
+                disabled={winner !== ""}
+                onClick={() => makePlayerMove(index)}
+                className="bg-gray-200 border border-gray-400 w-24 h-24 text-4xl font-bold text-center cursor-pointer"
+                key={index}
+              >
+                {val}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

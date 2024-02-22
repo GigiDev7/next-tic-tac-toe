@@ -1,9 +1,9 @@
-import Game from "@/components/Game";
+import Board from "@/components/Board";
 
 export default function Home() {
   return (
     <div className="flex justify-center items-center h-screen">
-      <Game />
+      <Board />
     </div>
   );
 }
