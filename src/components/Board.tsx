@@ -4,6 +4,8 @@ import { FC, useEffect, useLayoutEffect, useState } from "react";
 import DifficultyOptions from "./DifficultyOptions";
 import { useAuthContext } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import { useGame } from "@/hooks/useGame";
 
 const winningCombinations = [
   [0, 1, 2],
@@ -24,6 +26,18 @@ const Board = () => {
 
   const authCtx = useAuthContext();
   const router = useRouter();
+  const { postGame, getGame, saveGame } = useGame();
+
+  useEffect(() => {
+    getGame(authCtx.email).then((res) => {
+      console.log(res);
+      if (res && res.board) {
+        setGameBoard(res.board);
+        setTurn("Player");
+        setDifficulty("medium");
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!turn && difficulty) {
@@ -32,7 +46,17 @@ const Board = () => {
         setTurn("Player");
       } else {
         setTurn("AI");
-        makeMove(gameBoard, difficulty);
+        postGame({
+          board: gameBoard,
+          difficulty,
+          email: authCtx.email,
+          winner: "",
+        }).then((res) => {
+          if (res) {
+            setGameBoard(res.board);
+            setTurn("Player");
+          }
+        });
       }
     }
   }, [difficulty]);
@@ -59,170 +83,46 @@ const Board = () => {
     return board.every((val) => val !== "");
   }
 
-  function makeRandomMove(board: string[]) {
-    const emptyCells = [];
-    for (let i = 0; i < board.length; i++) {
-      if (!board[i]) emptyCells.push(i);
-    }
-
-    if (emptyCells.length > 0) {
-      const randomIndex = Math.floor(Math.random() * emptyCells.length);
-      const randomCellIndex = emptyCells[randomIndex];
-      const newBoard = [...board];
-      newBoard[randomCellIndex] = "O";
-      setGameBoard(newBoard);
-      setTurn("Player");
-
-      if (checkWinner(newBoard)) {
-        setWinner("AI");
-        return;
-      }
-
-      if (isBoardFull(newBoard)) {
-        setWinner("Draw");
-      }
-    }
-  }
-
-  function makeMediumMove(board: string[]) {
-    //check if bot can win
-    for (let i = 0; i < board.length; i++) {
-      if (!board[i]) {
-        const newBoard = [...board];
-        newBoard[i] = "O";
-        setGameBoard(newBoard);
-
-        if (checkWinner(newBoard)) {
-          setWinner("AI");
-          return;
-        }
-      }
-    }
-
-    //check if the player can win and block it
-    for (let i = 0; i < board.length; i++) {
-      if (!board[i]) {
-        const newBoard = [...board];
-        newBoard[i] = "X";
-        if (checkWinner(newBoard)) {
-          newBoard[i] = "O";
-          setGameBoard(newBoard);
-          setTurn("Player");
-
-          if (isBoardFull(newBoard)) {
-            setWinner("Draw");
-          }
-          return;
-        }
-      }
-    }
-
-    makeRandomMove(board);
-  }
-
-  function minimax(board: string[], player: string) {
-    if (checkWinner(board) === "O") {
-      return { score: 10 };
-    } else if (checkWinner(board) === "X") {
-      return { score: -10 };
-    } else if (isBoardFull(board)) {
-      return { score: 0 };
-    }
-
-    const moves = [];
-
-    for (let i = 0; i < board.length; i++) {
-      if (!board[i]) {
-        const move: any = {};
-        move.index = i;
-
-        board[i] = player;
-
-        if (player === "O") {
-          const result = minimax(board, "X");
-          move.score = result.score;
-        } else {
-          const result = minimax(board, "O");
-          move.score = result.score;
-        }
-
-        board[i] = "";
-
-        moves.push(move);
-      }
-    }
-
-    let bestMove;
-    if (player === "O") {
-      let bestScore = -Infinity;
-      for (let i = 0; i < moves.length; i++) {
-        if (moves[i].score > bestScore) {
-          bestScore = moves[i].score;
-          bestMove = moves[i];
-        }
-      }
-    } else {
-      let bestScore = Infinity;
-      for (let i = 0; i < moves.length; i++) {
-        if (moves[i].score < bestScore) {
-          bestScore = moves[i].score;
-          bestMove = moves[i];
-        }
-      }
-    }
-
-    return bestMove;
-  }
-
-  function makeHardMove(board: string[]) {
-    const bestMove = minimax(board, "O");
-    const newBoard = [...board];
-    newBoard[bestMove.index] = "O";
-    setGameBoard(newBoard);
-    setTurn("Player");
-
-    if (checkWinner(newBoard)) {
-      setWinner("AI");
-      return;
-    }
-
-    if (isBoardFull(newBoard)) {
-      setWinner("Draw");
-    }
-  }
-
-  function makePlayerMove(index: number) {
+  async function makePlayerMove(index: number) {
     if (!gameBoard[index] && turn === "Player") {
       const newBoard = [...gameBoard];
       newBoard[index] = "X";
       setGameBoard(newBoard);
       setTurn("AI");
 
+      let newWinner = "";
+
       if (checkWinner(newBoard)) {
         setWinner("Player");
-        return;
+        newWinner = "Player";
       }
 
-      if (isBoardFull(newBoard)) {
+      if (isBoardFull(newBoard) && !winner) {
         setWinner("Draw");
-        return;
+        newWinner = "Draw";
       }
 
-      makeMove(newBoard, difficulty);
+      const data = await postGame({
+        board: newBoard,
+        difficulty,
+        email: authCtx.email,
+        winner: newWinner,
+      });
+
+      if (data?.board) {
+        setGameBoard(data.board);
+        setTurn("Player");
+        if (data.winner) {
+          setWinner("AI");
+        }
+      }
     }
   }
 
-  function makeMove(board: string[], difficulty: string) {
-    if (difficulty === "easy") {
-      makeRandomMove(board);
-    } else if (difficulty === "medium") {
-      makeMediumMove(board);
-    } else if (difficulty === "hard") {
-      makeHardMove(board);
+  async function logout() {
+    if (gameBoard.some((el) => el !== "") && !winner) {
+      await saveGame(gameBoard, authCtx.email);
     }
-  }
-
-  function logout() {
     authCtx.logout();
     router.replace("/login");
   }
