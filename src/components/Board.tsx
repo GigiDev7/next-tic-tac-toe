@@ -1,7 +1,9 @@
 "use client";
 
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useLayoutEffect, useState } from "react";
 import DifficultyOptions from "./DifficultyOptions";
+import { useAuthContext } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 const winningCombinations = [
   [0, 1, 2],
@@ -14,15 +16,14 @@ const winningCombinations = [
   [2, 4, 6],
 ];
 
-/* interface BoardProps {
-  difficulty: string;
-} */
-
 const Board = () => {
   const [gameBoard, setGameBoard] = useState<string[]>(Array(9).fill(""));
   const [turn, setTurn] = useState("");
   const [winner, setWinner] = useState("");
   const [difficulty, setDifficulty] = useState("");
+
+  const authCtx = useAuthContext();
+  const router = useRouter();
 
   useEffect(() => {
     if (!turn && difficulty) {
@@ -35,6 +36,10 @@ const Board = () => {
       }
     }
   }, [difficulty]);
+
+  if (!authCtx.email) {
+    return null;
+  }
 
   function changeDifficulty(dif: string) {
     setDifficulty(dif);
@@ -217,33 +222,60 @@ const Board = () => {
     }
   }
 
+  function logout() {
+    authCtx.logout();
+    router.replace("/login");
+  }
+
+  function startOver() {
+    setTurn("");
+    setDifficulty("");
+    setWinner("");
+    setGameBoard(Array(9).fill(""));
+  }
+
   return (
-    <div className="flex flex-col gap-8">
-      {winner && (
-        <h1>{winner === "Draw" ? "It's a draw" : `Winner is ${winner}`}</h1>
-      )}
+    <div>
+      <button onClick={logout} className="fixed top-20 right-10">
+        Logout
+      </button>
+      <div className="flex flex-col gap-8">
+        {winner && (
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="font-bold">
+              {winner === "Draw" ? "It's a draw" : `Winner is ${winner}`}
+            </h1>
+            <button
+              className="bg-blue-500 hover:bg-blue-600 py-2 px-7 rounded-md text-white"
+              onClick={startOver}
+            >
+              Start Over
+            </button>
+          </div>
+        )}
 
-      <DifficultyOptions
-        changeDifficulty={changeDifficulty}
-        difficulty={difficulty}
-      />
+        <DifficultyOptions
+          changeDifficulty={changeDifficulty}
+          difficulty={difficulty}
+        />
 
-      {difficulty && (
-        <div className="grid grid-cols-3 gap-1">
-          {gameBoard.map((val, index) => {
-            return (
-              <button
-                disabled={winner !== ""}
-                onClick={() => makePlayerMove(index)}
-                className="bg-gray-200 border border-gray-400 w-24 h-24 text-4xl font-bold text-center cursor-pointer"
-                key={index}
-              >
-                {val}
-              </button>
-            );
-          })}
-        </div>
-      )}
+        {difficulty && (
+          <div className="grid grid-cols-3 gap-1">
+            {gameBoard.map((val, index) => {
+              return (
+                <button
+                  disabled={winner !== ""}
+                  onClick={() => makePlayerMove(index)}
+                  className="bg-gray-200 border border-gray-400 w-24 h-24 text-4xl font-bold text-center cursor-pointer"
+                  key={index}
+                >
+                  {val}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
